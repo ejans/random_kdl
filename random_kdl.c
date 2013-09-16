@@ -158,8 +158,10 @@ static void rnd_step(ubx_block_t *c) {
 	//rand_val = (rand_val > inf->max) ? (rand_val%inf->max) : rand_val;
 	//rand_val = (rand_val < inf->min) ? ((inf->min + rand_val)%inf->max) : rand_val;
 	randomTwist(inf);
+        printf("x value from twist rotation: %f\n", inf->twist.rot.x);
         write_kdl_twist(twist_port, &inf->twist);
 	randomFrame(inf);
+        printf("fourth value from frame matrix: %f\n", inf->frame.M.data[3]);
         write_kdl_frame(frame_port, &inf->frame);
 }
 
