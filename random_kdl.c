@@ -1,5 +1,5 @@
 /*
- * A fblock that generates random numbers.
+ * A fblock that generates random kdl_twist and kld_frame structs.
  */
 
 #define DEBUG 1
@@ -113,9 +113,8 @@ static int rnd_start(ubx_block_t *c)
 
 static double randomize(struct random_kdl_info *inf) {
         
-        double ret = random();
-	//ret = (ret > inf->max) ? (ret%inf->max) : ret;
-	//ret = (ret < inf->min) ? ((inf->min + ret)%inf->max) : ret;
+        double ret = rand() / (double)RAND_MAX;
+        ret = ret * inf->max;
 
 	return ret;
 }
@@ -147,21 +146,19 @@ static void randomFrame(struct random_kdl_info* inf) {
 }
 
 static void rnd_step(ubx_block_t *c) {
-	//unsigned int rand_val;
-	struct random_kdl_info* inf;
 
+	struct random_kdl_info* inf;
 	inf=(struct random_kdl_info*) c->private_data;
 
 	ubx_port_t* twist_port = ubx_port_get(c, "base_msr_twist");
         ubx_port_t* frame_port = ubx_port_get(c, "base_msr_odom");
-	//rand_val = random();
-	//rand_val = (rand_val > inf->max) ? (rand_val%inf->max) : rand_val;
-	//rand_val = (rand_val < inf->min) ? ((inf->min + rand_val)%inf->max) : rand_val;
+
 	randomTwist(inf);
-        printf("x value from twist rotation: %f\n", inf->twist.rot.x);
+        DBG("x value from twist rotation: %f\n", inf->twist.rot.x);
         write_kdl_twist(twist_port, &inf->twist);
+
 	randomFrame(inf);
-        printf("fourth value from frame matrix: %f\n", inf->frame.M.data[3]);
+        DBG("fourth value from frame matrix: %f\n", inf->frame.M.data[3]);
         write_kdl_frame(frame_port, &inf->frame);
 }
 
