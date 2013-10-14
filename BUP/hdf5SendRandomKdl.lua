@@ -1,21 +1,24 @@
 #!/usr/bin/luajit
 
-local ffi = require("ffi")
-local ubx = require "ubx"
-local ubx_utils = require("ubx_utils")
-local ts = tostring
+ffi = require("ffi")
+ubx = require "ubx"
+time = require("time")
+ts = tostring
 
 -- prog starts here.
-ni=ubx.node_create("testnode")
+ni=ubx.node_create("hdf5SendRandomKdl")
 
+-- load modules
 ubx.load_module(ni, "std_types/stdtypes/stdtypes.so")
 ubx.load_module(ni, "std_types/kdl/kdl_types.so")
 ubx.load_module(ni, "std_blocks/webif/webif.so")
+ubx.load_module(ni, "std_blocks/youbot_driver/youbot_driver.so")
 ubx.load_module(ni, "std_blocks/h5fddsmsender/H5FDdsmSender.so")
 ubx.load_module(ni, "std_blocks/lfds_buffers/lfds_cyclic.so")
 ubx.load_module(ni, "std_blocks/ptrig/ptrig.so")
 ubx.load_module(ni, "std_blocks/random_kdl/random_kdl.so")
 
+-- create necessary blocks
 print("creating instance of 'webif/webif'")
 webif1=ubx.block_create(ni, "webif/webif", "webif1", { port="8888" })
 
@@ -23,6 +26,7 @@ print("creating instance of 'random_kdl/random_kdl'")
 random_kdl1=ubx.block_create(ni, "random_kdl/random_kdl", "random_kdl1", {min_max_config={min=0, max=10}})
 
 print("creating instance of 'std_blocks/h5fddsmsender'")
+--hdf51=ubx.block_create(ni, "std_blocks/h5fddsmsender", "hdf51", { port_ip_config={ip="10.33.173.187", port="22000"}})
 hdf51=ubx.block_create(ni, "std_blocks/h5fddsmsender", "hdf51", { port_ip_config={ip="10.33.172.170", port="22000"}})
 --hdf51=ubx.block_create(ni, "std_blocks/h5fddsmsender", "hdf51", { port_ip_config={ip="192.168.10.171", port="22000"}})
 
@@ -38,25 +42,19 @@ ptrig1=ubx.block_create(ni, "std_triggers/ptrig", "ptrig1", {
 print("running webif init", ubx.block_init(webif1))
 print("running webif start", ubx.block_start(webif1))
 
-print("before fifo connect")
 fifo=ubx.conn_lfds_cyclic(random_kdl1, "base_msr_twist", hdf51, "base_msr_twist", 1, true);
 fifo2=ubx.conn_lfds_cyclic(random_kdl1, "base_msr_odom", hdf51, "base_msr_odom", 1, true);
+fifo3=ubx.conn_lfds_cyclic(random_kdl1, "arm1_state", hdf51, "arm1_state", 1, true);
 
-print("start fifos")
 ubx.block_start(fifo)
 ubx.block_start(fifo2)
-print("fifo blocks started!")
+ubx.block_start(fifo3)
 
-print("starting random_kdl")
 ubx.block_init(random_kdl1)
 ubx.block_start(random_kdl1)
 
-print("starting hdf51")
 ubx.block_init(hdf51)
 ubx.block_start(hdf51)
-
---print("initializing ptrig1")
---ubx.block_init(ptrig1)
 
 --- Move with a given twist.
 -- @param twist table.

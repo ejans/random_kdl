@@ -1,6 +1,7 @@
 /*=========================================================================
   A fblock that generates random kdl_twsit and kdl_frams structs.
   Copyright (C) 2013 Evert Jans
+ 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,7 +18,7 @@
 			
 =========================================================================*/
 
-#define DEBUG 1
+/* #define DEBUG 1 */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,39 +27,29 @@
 #include "ubx.h"
 
 #include <kdl.h>
+#include "../youbot_driver/types/motionctrl_jnt_state.h"
 
 #include "types/random_kdl_config.h"
 #include "types/random_kdl_config.h.hexarr"
 
 ubx_type_t random_kdl_config_type = def_struct_type(struct random_kdl_config, &random_kdl_config_h);
 
-/* function block meta-data
- * used by higher level functions.
- */
 char rnd_meta[] =
 	"{ doc='A random number generator function block to fill kdl_twist and kdl_frame',"
-	"  license='LGPL',"
 	"  real-time=true,"
 	"}";
 
-/* configuration
- * upon cloning the following happens:
- *   - value.type is resolved
- *   - value.data will point to a buffer of size value.len*value.type->size
- *
- * if an array is required, then .value = { .len=<LENGTH> } can be used.
- */
 ubx_config_t rnd_config[] = {
 	{ .name="min_max_config", .type_name = "struct random_kdl_config" },
 	{ NULL },
 };
 
-
 ubx_port_t rnd_ports[] = {
-	{ .name="seed", .attrs=PORT_DIR_IN, .in_type_name="unsigned int" },
 
+	{ .name="seed", .attrs=PORT_DIR_IN, .in_type_name="unsigned int" },
 	{ .name="base_msr_twist", .attrs=PORT_DIR_OUT, .out_type_name="struct kdl_twist" },
 	{ .name="base_msr_odom", .attrs=PORT_DIR_OUT, .out_type_name="struct kdl_frame" },
+	{ .name="arm1_state", .attrs=PORT_DIR_OUT, .out_type_name="struct motionctrl_jnt_state"},
 
 	{ NULL },
 };
@@ -68,6 +59,7 @@ struct random_kdl_info {
 	int max;
         struct kdl_twist twist;
         struct kdl_frame frame;
+	struct motionctrl_jnt_state armState;
 };
 
 /* convenience functions to read/write from the ports */
@@ -75,6 +67,7 @@ def_read_fun(read_uint, unsigned int)
 //def_write_fun(write_uint, unsigned int)
 def_write_fun(write_kdl_twist, struct kdl_twist)
 def_write_fun(write_kdl_frame, struct kdl_frame)
+def_write_fun(write_arm_state, struct motionctrl_jnt_state)
 
 static int rnd_init(ubx_block_t *c)
 {
@@ -160,6 +153,28 @@ static void randomFrame(struct random_kdl_info* inf) {
 	inf->frame.M.data[8] = randomize(inf);
 }
 
+static void randomArmState(struct random_kdl_info* inf) {
+	
+	inf->armState.pos[0] = randomize(inf);
+	inf->armState.pos[1] = randomize(inf);
+	inf->armState.pos[2] = randomize(inf);
+	inf->armState.pos[3] = randomize(inf);
+	inf->armState.pos[4] = randomize(inf);
+
+	inf->armState.vel[0] = randomize(inf);
+	inf->armState.vel[1] = randomize(inf);
+	inf->armState.vel[2] = randomize(inf);
+	inf->armState.vel[3] = randomize(inf);
+	inf->armState.vel[4] = randomize(inf);
+
+	inf->armState.eff[0] = randomize(inf);
+	inf->armState.eff[1] = randomize(inf);
+	inf->armState.eff[2] = randomize(inf);
+	inf->armState.eff[3] = randomize(inf);
+	inf->armState.eff[4] = randomize(inf);
+}
+
+
 static void rnd_step(ubx_block_t *c) {
 
 	struct random_kdl_info* inf;
@@ -167,6 +182,7 @@ static void rnd_step(ubx_block_t *c) {
 
 	ubx_port_t* twist_port = ubx_port_get(c, "base_msr_twist");
         ubx_port_t* frame_port = ubx_port_get(c, "base_msr_odom");
+	ubx_port_t* arm_port = ubx_port_get(c, "arm1_state");
 
 	randomTwist(inf);
         DBG("x value from twist rotation: %f\n", inf->twist.rot.x);
@@ -175,6 +191,10 @@ static void rnd_step(ubx_block_t *c) {
 	randomFrame(inf);
         DBG("fourth value from frame matrix: %f\n", inf->frame.M.data[3]);
         write_kdl_frame(frame_port, &inf->frame);
+
+	randomArmState(inf);
+	DBG("fourth value from position matrix arm state: %f\n", inf->armState.pos[3]);
+	write_arm_state(arm_port, &inf->armState);
 }
 
 /* put everything together */
@@ -194,16 +214,16 @@ ubx_block_t random_comp = {
 
 static int random_init(ubx_node_info_t* ni)
 {
-	DBG(" ");
 	ubx_type_register(ni, &random_kdl_config_type);
 	return ubx_block_register(ni, &random_comp);
 }
 
 static void random_cleanup(ubx_node_info_t *ni)
 {
-	DBG(" ");
+	ubx_type_unregister(ni, "struct random_kdl_config");
 	ubx_block_unregister(ni, "random_kdl/random_kdl");
 }
 
 UBX_MODULE_INIT(random_init)
 UBX_MODULE_CLEANUP(random_cleanup)
+UBX_MODULE_LICENSE_SPDX(BSD-3-Clause)
